@@ -126,6 +126,27 @@ def grab_all_players(url_link):
 	return name_list, url_list
 
 
+def grab_free_retired(url_link):
+	'''
+	Grab the free_agents and retired based on the link provided
+	'''
+	wiki_url = "https://lol.fandom.com"
+	response = requests.get(
+		url=url_link,
+	)
+	if response.status_code != 200:
+		print("BAD STATUS")
+		return
+	soup = BeautifulSoup(response.content, 'html.parser')
+
+	free_retired_list = []
+	tab_head = soup.find_all("div", {"class": "tabheader-tab"})
+	for tab in tab_head[1:]:
+		free_retired_list.append(wiki_url + tab.find('a')['href'])
+
+	return free_retired_list
+
+
 def grab_all_residency(url_link):
 	'''
 	grab all residency links EXCEPT FOR EMA CUZ HUH
@@ -146,7 +167,7 @@ def grab_all_residency(url_link):
 	resident_name = []
 
 	residents = soup.find("div", {"class": "hlist"}).find_all('li')
-	for resident in residents[1:]:
+	for resident in residents[2:]:
 		res_url_link.append(wiki_url + resident.find('a')["href"])
 		resident_name.append(resident.find('a').get_text() + "/")
 
@@ -155,7 +176,44 @@ def grab_all_residency(url_link):
 	return resident_name, res_url_link
 
 
-def grab_free_retired(url_link):
+
+def aggregate_all(url_link):
+	'''
+	Big Boi, The one and Only to grab everything.
+	takes in a url_link and it HAS TO BE NA
+	'''
+
+	#grab the resident_names, and the urls
+	resident_names, res_urls = grab_all_residency(url_link)
+
+	#since this link is from NA we will use this url
+	N_A_free_retired = grab_free_retired(url_link)
+	N_A_free_retired.append(url_link)
+	N_A_free_retired.append("NA/")
+
+	resident_free_retired = []
+	resident_free_retired.append(N_A_free_retired)
+
+	i = 0
+	for res_url in res_urls:
+		free_retired = grab_free_retired(res_url)
+		free_retired.append(res_url)
+		free_retired.append(resident_names[i])
+		resident_free_retired.append(free_retired)
+		i += 1
+
+
+	for outer in resident_free_retired:
+		for inner in outer[:-1]:
+			player_name, player_urls = grab_all_players(inner)
+			for player_url in player_urls:
+				placements_grab(player_url, outer[-1])
+				image_grab(player_url+"/Tournament_Results", outer[-1])
+
+
+	#now need to grab the urls and names to get the player names
+
+
 
 
 
@@ -166,4 +224,9 @@ def grab_free_retired(url_link):
 #grab_all_players("https://lol.fandom.com/wiki/North_American_Players")
 #grab_all_players("https://lol.fandom.com/wiki/North_American_Players/Free_Agents")
 
-grab_all_residency("https://lol.fandom.com/wiki/North_American_Players")
+#grab_all_residency("https://lol.fandom.com/wiki/North_American_Players")
+
+#grab_free_retired("https://lol.fandom.com/wiki/North_American_Players")
+
+aggregate_all("https://lol.fandom.com/wiki/North_American_Players")
+
