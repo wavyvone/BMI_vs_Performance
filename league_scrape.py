@@ -21,12 +21,6 @@ def image_grab(url_link, resident_folder):
 	#use this for file path later
 	title = soup.find(id="firstHeading").string.strip()
 
-	#sanity check
-	gallery_name = soup.find_all("div", {"class": "gallerytext"})
-	name_list = []
-	for name in gallery_name:
-		name_list.append(name.get_text().strip())
-
 	#might have to change this if youre a windows user
 	path_str = "./" + resident_folder + title
 	isExist = os.path.exists(path_str)
@@ -35,6 +29,12 @@ def image_grab(url_link, resident_folder):
 	else:
 		# Create a new directory because it does not exist
 		os.makedirs(path_str)
+
+	#sanity check
+	gallery_name = soup.find_all("div", {"class": "gallerytext"})
+	name_list = []
+	for name in gallery_name:
+		name_list.append(name.get_text().strip())
 
 	#grab links
 	if soup.find("ul", {"class": "gallery mw-gallery-traditional"}) == None:
@@ -71,15 +71,6 @@ def placements_grab(url_link, resident_folder):
 	title = soup.find(id="firstHeading").string.strip()
 	dir_name = title.replace("/", "_").replace(" ","_")
 
-
-	placements = soup.find("table", {"class": "wikitable sortable hoverable-rows"}).find_all('tr')
-	placement_list = []
-	for place in placements:
-		place_l = place.get_text(",", strip=True).replace(',,,', ',').split(',')
-		if len(place_l) > 15:
-			#print(place_l)
-			placement_list.append([place_l[1],place_l[2], place_l[9]])
-
 	path_str = "./" + resident_folder + dir_name
 	isExist = os.path.exists(path_str)
 	if isExist:
@@ -93,6 +84,15 @@ def placements_grab(url_link, resident_folder):
 
 	if os.path.isfile(file_str):
 		return
+
+	placements = soup.find("table", {"class": "wikitable sortable hoverable-rows"}).find_all('tr')
+	placement_list = []
+	for place in placements:
+		place_l = place.get_text(",", strip=True).replace(',,,', ',').split(',')
+		if len(place_l) > 15:
+			#print(place_l)
+			placement_list.append([place_l[1],place_l[2], place_l[9]])
+
 
 	with open(file_str, "w", newline="") as f:
 		writer = csv.writer(f)
