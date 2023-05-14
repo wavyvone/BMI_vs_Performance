@@ -14,7 +14,7 @@ def image_grab(url_link, resident_folder):
 		url=url_link,
 	)
 	if response.status_code != 200:
-		print("BAD STATUS")
+		print("BAD STATUS image")
 		return
 	soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -27,12 +27,6 @@ def image_grab(url_link, resident_folder):
 	for name in gallery_name:
 		name_list.append(name.get_text().strip())
 
-	#grab links
-	gallery_links = soup.find("ul", {"class": "gallery mw-gallery-traditional"}).find_all('a')
-	img_list = []
-	for img in gallery_links:
-		img_list.append(img['href'])
-
 	#might have to change this if youre a windows user
 	path_str = "./" + resident_folder + title
 	isExist = os.path.exists(path_str)
@@ -41,6 +35,15 @@ def image_grab(url_link, resident_folder):
 	else:
 		# Create a new directory because it does not exist
 		os.makedirs(path_str)
+
+	#grab links
+	if soup.find("ul", {"class": "gallery mw-gallery-traditional"}) == None:
+		return
+	gallery_links = soup.find("ul", {"class": "gallery mw-gallery-traditional"}).find_all('a')
+	img_list = []
+	for img in gallery_links:
+		img_list.append(img['href'])
+
 
 	#iterate list and download images
 	#DOES NOT CHECK DUPLICATES
@@ -60,7 +63,7 @@ def placements_grab(url_link, resident_folder):
 		url=url_link,
 	)
 	if response.status_code != 200:
-		print("BAD STATUS")
+		print("BAD STATUS placement")
 		return
 	soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -108,7 +111,7 @@ def grab_all_players(url_link):
 		url=url_link,
 	)
 	if response.status_code != 200:
-		print("BAD STATUS")
+		print("BAD STATUS grab players")
 		return
 	soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -135,7 +138,7 @@ def grab_free_retired(url_link):
 		url=url_link,
 	)
 	if response.status_code != 200:
-		print("BAD STATUS")
+		print("BAD STATUS free retired")
 		return
 	soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -157,7 +160,7 @@ def grab_all_residency(url_link):
 		url=url_link,
 	)
 	if response.status_code != 200:
-		print("BAD STATUS")
+		print("BAD STATUS grab resident")
 		return
 	soup = BeautifulSoup(response.content, 'html.parser')
 	#how to organize this?
@@ -207,8 +210,8 @@ def aggregate_all(url_link):
 		for inner in outer[:-1]:
 			player_name, player_urls = grab_all_players(inner)
 			for player_url in player_urls:
-				placements_grab(player_url, outer[-1])
-				image_grab(player_url+"/Tournament_Results", outer[-1])
+				placements_grab(player_url+"/Tournament_Results", outer[-1])
+				image_grab(player_url, outer[-1])
 
 
 	#now need to grab the urls and names to get the player names
