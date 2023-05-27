@@ -3,19 +3,32 @@ from bs4 import BeautifulSoup
 import wget
 import os
 import csv
+import pandas as pd
+from urllib.parse import urlparse, parse_qs
+import re
+
 
 def image_grab(url_link, resident_folder):
 	'''
-	Takes in url which is a string but I have no asserts
-	and resident_folder which is the dir it has
-	e.g KR/ or NA/
+	grabs all the photos out of a wiki page for lol.fandom.com 
+	creates a subfolder in the resident folder
+	downloads all the pictures to the subfolder
+
+	Params
+	url_link- (str) in the form of https://lol.fandom.com/wiki/Babo
+	resident_folder- (str) in the form of  'NA/'
 	'''
-	response = requests.get(
-		url=url_link,
-	)
+	try:
+		response = requests.get(
+            url=url_link,
+        )
+	except requests.exceptions.ConnectionError:
+		print(f"Connection Error for {url_link} in image_grab")
+		return url_link
 	if response.status_code != 200:
 		print("BAD STATUS image")
-		return
+		return url_link
+	
 	soup = BeautifulSoup(response.content, 'html.parser')
 
 	#use this for file path later
@@ -23,33 +36,40 @@ def image_grab(url_link, resident_folder):
 
 	#might have to change this if youre a windows user
 	path_str = "./" + resident_folder + title
-	isExist = os.path.exists(path_str)
-	if isExist:
-		return
-	else:
+	if not os.path.exists(path_str):
 		# Create a new directory because it does not exist
 		os.makedirs(path_str)
 
-	#sanity check
-	gallery_name = soup.find_all("div", {"class": "gallerytext"})
-	name_list = []
-	for name in gallery_name:
-		name_list.append(name.get_text().strip())
-
 	#grab links
-	if soup.find("ul", {"class": "gallery mw-gallery-traditional"}) == None:
+	gallery = soup.find("ul", {"class": "gallery mw-gallery-traditional"})
+	if gallery is None:
 		return
-	gallery_links = soup.find("ul", {"class": "gallery mw-gallery-traditional"}).find_all('a')
+
+	gallery_links = gallery.find_all('a')
 	img_list = []
+
 	for img in gallery_links:
-		img_list.append(img['href'])
+		url = img.get('href')
+
+		# Check if the url is an image link
+		if '.jpg' in url or '.png' in url or '.jpeg' in url:
+			img_list.append(url)
+
+
+	#gets a list of existing photos and removes them from the photo links
+	existingPhotos = os.listdir(path_str)
+	img_list_novel = []
+	for url in img_list:
+		match = re.search(r'/([\w-]+\.(?:jpg|jpeg|png))/', url)
+		if match is not None:
+			filename = match.group(1)
+			if filename not in existingPhotos:
+				img_list_novel.append(url)
 
 
 	#iterate list and download images
-	#DOES NOT CHECK DUPLICATES
-	for i in img_list:
-		wget.download(i, out = path_str)
-
+	for i in img_list_novel:
+		wget.download(i, out = path_str, bar=None)
 
 
 def placements_grab(url_link, resident_folder):
@@ -59,12 +79,17 @@ def placements_grab(url_link, resident_folder):
 	and resident_folder
 	e.g. KR/
 	'''
-	response = requests.get(
-		url=url_link,
-	)
+	try:
+		response = requests.get(
+            url=url_link,
+        )
+	except requests.exceptions.ConnectionError:
+		print(f"Connection Error for {url_link} in placements_grab")
+		return url_link
 	if response.status_code != 200:
 		print("BAD STATUS placement")
-		return
+		return url_link
+	
 	soup = BeautifulSoup(response.content, 'html.parser')
 
 	#use this for file path later
@@ -72,27 +97,27 @@ def placements_grab(url_link, resident_folder):
 	dir_name = title.replace("/", "_").replace(" ","_")
 
 	path_str = "./" + resident_folder + dir_name
-	isExist = os.path.exists(path_str)
-	if isExist:
-		return
-	else:
+	if not os.path.exists(path_str):
 		# Create a new directory because it does not exist
 		os.makedirs(path_str)
 
 	file_str = path_str + "/"+ dir_name + ".csv"
-	print(file_str)
 
+	#if the .csv file already exists, rename it
 	if os.path.isfile(file_str):
-		return
+		renameNumber = 1
+		newName = file_str[:-4] + str(renameNumber) + '.csv'
+		while os.path.isfile(newName):
+			renameNumber += 1
+			newName = file_str[:-4] + str(renameNumber) + '.csv'
+		os.rename(file_str, newName)
 
 	placements = soup.find("table", {"class": "wikitable sortable hoverable-rows"}).find_all('tr')
+	placements = placements[2:]
 	placement_list = []
 	for place in placements:
-		place_l = place.get_text(",", strip=True).replace(',,,', ',').split(',')
-		if len(place_l) > 15:
-			#print(place_l)
-			placement_list.append([place_l[1],place_l[2], place_l[9]])
-
+		cells = place.find_all('td')
+		placement_list.append([cells[1].get_text(strip=True), cells[2].get_text(strip=True), cells[4].get_text(strip=True)])
 
 	with open(file_str, "w", newline="") as f:
 		writer = csv.writer(f)
@@ -124,112 +149,69 @@ def grab_all_players(url_link):
 		url_list.append(wiki_url + urls.find('a')["href"])
 
 	assert len(url_list) == len(name_list)
-	print(name_list)
-	print(url_list)
 	return name_list, url_list
 
 
-def grab_free_retired(url_link):
-	'''
-	Grab the free_agents and retired based on the link provided
-	'''
-	wiki_url = "https://lol.fandom.com"
-	response = requests.get(
-		url=url_link,
-	)
-	if response.status_code != 200:
-		print("BAD STATUS free retired")
-		return
-	soup = BeautifulSoup(response.content, 'html.parser')
-
-	free_retired_list = []
-	tab_head = soup.find_all("div", {"class": "tabheader-tab"})
-	for tab in tab_head[1:]:
-		free_retired_list.append(wiki_url + tab.find('a')['href'])
-
-	return free_retired_list
-
-
-def grab_all_residency(url_link):
-	'''
-	grab all residency links EXCEPT FOR EMA CUZ HUH
-	Grab from the NA link
-	'''
-	wiki_url = "https://lol.fandom.com"
-	response = requests.get(
-		url=url_link,
-	)
-	if response.status_code != 200:
-		print("BAD STATUS grab resident")
-		return
-	soup = BeautifulSoup(response.content, 'html.parser')
-	#how to organize this?
-	#get all the resident links first and store in list
-
-	res_url_link = []
-	resident_name = []
-
-	residents = soup.find("div", {"class": "hlist"}).find_all('li')
-	for resident in residents[2:]:
-		res_url_link.append(wiki_url + resident.find('a')["href"])
-		resident_name.append(resident.find('a').get_text() + "/")
-
-	assert len(res_url_link) == len(resident_name)
-
-	return resident_name, res_url_link
+def append_error(error_message, error_file):
+    with open(error_file, 'a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(error_message)
 
 
 
-def aggregate_all(url_link):
-	'''
-	Big Boi, The one and Only to grab everything.
-	takes in a url_link and it HAS TO BE NA
-	'''
+def scrapePlayersFromURL(url, folder):
 
-	#grab the resident_names, and the urls
-	resident_names, res_urls = grab_all_residency(url_link)
+	_, player_urls = grab_all_players(url)
 
-	#since this link is from NA we will use this url
-	N_A_free_retired = grab_free_retired(url_link)
-	N_A_free_retired.append(url_link)
-	N_A_free_retired.append("NA/")
+	counter = 1
+	for player_url in player_urls:
+		print(str(round(counter/len(player_urls)*100, ndigits=2)) + "% done: " + player_url)
+		
+		response_placement = placements_grab(player_url+"/Tournament_Results", folder)
+		if response_placement is not None:
+			append_error(response_placement, './placement_errors.csv')
+		
+		response_image = image_grab(player_url, folder)
+		if response_image is not None:
+			append_error(response_image, './image_errors.csv')
 
-	resident_free_retired = []
-	resident_free_retired.append(N_A_free_retired)
-
-	i = 0
-	for res_url in res_urls:
-		free_retired = grab_free_retired(res_url)
-		free_retired.append(res_url)
-		free_retired.append(resident_names[i])
-		resident_free_retired.append(free_retired)
-		i += 1
-
-
-	for outer in resident_free_retired:
-		for inner in outer[:-1]:
-			player_name, player_urls = grab_all_players(inner)
-			for player_url in player_urls:
-				placements_grab(player_url+"/Tournament_Results", outer[-1])
-				image_grab(player_url, outer[-1])
-
-
-	#now need to grab the urls and names to get the player names
+		counter += 1
+	return
 
 
 
+def main():
+
+	folders = ['NA/', 'CN/', "KR/"]
+	urls = ['https://lol.fandom.com/wiki/North_American_Players', 'https://lol.fandom.com/wiki/Chinese_Players', 'https://lol.fandom.com/wiki/Korean_Players']
+	#folders = ["KR/"]
+	#urls =  ['https://lol.fandom.com/wiki/Korean_Players']
+	
+	scrapePlayersFromURL('https://lol.fandom.com/wiki/Chinese_Players/Retired', 'CN/')
+
+	for (folder, url) in zip(folders, urls):		
+		
+		activePlayersUrl = url
+		freeAgentUrl = url + '/Free_Agents'
+		retiredPlayersUrl = url + '/Retired'
+
+		print("now processing: " + folder[:-1] + ' active players')
+		scrapePlayersFromURL(activePlayersUrl, folder)
+		
+		print("now processing: " + folder[:-1] + ' free agents')
+		scrapePlayersFromURL(freeAgentUrl, folder)
+		
+		print("now processing: " + folder[:-1] + ' retired players')
+		scrapePlayersFromURL(retiredPlayersUrl, folder)
 
 
-#image_grab("https://lol.fandom.com/wiki/Berserker_(Kim_Min-cheol)")
-#image_grab("https://lol.fandom.com/wiki/EMENES", "KR/")
-#placements_grab("https://lol.fandom.com/wiki/EMENES/Tournament_Results", "KR/")
+	#special case to process EU
+	url = 'https://lol.fandom.com/wiki/EMEA_Players'
+	urls = [url, url+'/Free_Agents', url+'/Free_Agents/N-S', url+'/Free_Agents/G-M', url + '/Free_Agents/T-Z']
 
-#grab_all_players("https://lol.fandom.com/wiki/North_American_Players")
-#grab_all_players("https://lol.fandom.com/wiki/North_American_Players/Free_Agents")
+	for urlEU in urls:
+		scrapePlayersFromURL(urlEU, 'EU/')
 
-#grab_all_residency("https://lol.fandom.com/wiki/North_American_Players")
 
-#grab_free_retired("https://lol.fandom.com/wiki/North_American_Players")
-
-aggregate_all("https://lol.fandom.com/wiki/North_American_Players")
-
+if __name__ == "__main__":
+    main()
