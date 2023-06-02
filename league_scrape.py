@@ -155,7 +155,7 @@ def grab_all_players(url_link):
 def append_error(error_message, error_file):
     with open(error_file, 'a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(error_message)
+        writer.writerow([error_message])
 
 
 
@@ -184,11 +184,6 @@ def main():
 
 	folders = ['NA/', 'CN/', "KR/"]
 	urls = ['https://lol.fandom.com/wiki/North_American_Players', 'https://lol.fandom.com/wiki/Chinese_Players', 'https://lol.fandom.com/wiki/Korean_Players']
-	#folders = ["KR/"]
-	#urls =  ['https://lol.fandom.com/wiki/Korean_Players']
-	
-	scrapePlayersFromURL('https://lol.fandom.com/wiki/Chinese_Players/Retired', 'CN/')
-
 	for (folder, url) in zip(folders, urls):		
 		
 		activePlayersUrl = url
