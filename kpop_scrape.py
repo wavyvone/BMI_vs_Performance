@@ -166,16 +166,16 @@ def data_image_grab(url_link, folder):
 
         # Write the data rows
         for person, data in idols.items():
-            print(person, data)
             row = {"Name": person, "BMI": data["bmi"], "Filename": data["filename"]}
             writer.writerow(row)
 
 
 if __name__ == "__main__":
+    '''
     disbanded_groups = grab_all_url("https://kprofiles.com/disbanded-kpop-boy-groups/")
     active_groups = grab_all_url("https://kprofiles.com/k-pop-boy-groups/")
     total = active_groups + disbanded_groups
     for url in total:
         data_image_grab(url, "kpopimages")
-
-    #data_image_grab("https://kprofiles.com/5tion-profile-facts/", "kpopimages")
+    '''
+    data_image_grab("https://kprofiles.com/5tion-profile-facts/", "kpopimages")
