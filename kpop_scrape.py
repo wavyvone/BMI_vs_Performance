@@ -132,5 +132,39 @@ def data_image_grab(url_link, folder):
             row = {"Name": person, "BMI": data["bmi"], "Filename": data["filename"]}
             writer.writerow(row)
 
+
+
+def grab_all_url(url_link):
+    '''
+    Grab all the urls from the main page of kprofiles
+    just put in url links
+    https://kprofiles.com/k-pop-boy-groups/
+    https://kprofiles.com/disbanded-kpop-boy-groups/
+    grabs all url links of the boy kpop profiles.
+    '''
+    try:
+        response = requests.get(
+            url=url_link,
+        )
+    except requests.exceptions.ConnectionError:
+        print(f"Connection Error for {url_link} in image_grab")
+        return url_link
+    if response.status_code != 200:
+        print("BAD STATUS image")
+        return url_link
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    head = soup.find("div", class_="entry-content herald-entry-content")
+    url_list = []
+    for url in head.find_all("a", href=True)[1:]:
+        url_list.append(url['href'])
+    return url_list
+
+
 if __name__ == "__main__":
-    data_image_grab("https://kprofiles.com/2nb-profile-facts/", "kpopimages")
+    disbanded_groups = grab_all_url("https://kprofiles.com/disbanded-kpop-boy-groups/")
+    active_groups = grab_all_url("https://kprofiles.com/k-pop-boy-groups/")
+    total = active_groups + disbanded_groups
+    for url in total:
+        data_image_grab(url, "kpopimages")
+    #data_image_grab("https://kprofiles.com/2nb-profile-facts/", "kpopimages")
