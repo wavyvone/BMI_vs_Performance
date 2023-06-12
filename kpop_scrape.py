@@ -79,9 +79,10 @@ def data_image_grab(url_link, folder):
     info = soup.find("div", class_="entry-content herald-entry-content")
     p_info = info.find_all('p')
 
-    img_info = info.find_all('img')
-    if len(img_info) > 1:  # more than one image
-        img_info.pop(0)  # pop first image
+    img_info = []
+    #img_info = info.find_all('img')
+    #if len(img_info) > 1:  # more than one image
+        #img_info.pop(0)  # pop first image
     # img_info.pop(0) #pop first image because that's always to group image
 
     # p_strip = [p.text.strip() for p in p_info]
@@ -96,14 +97,16 @@ def data_image_grab(url_link, folder):
             if len(img_url) == 0:
                 # if img_returns None then img doesnt exist
                 continue
-
+            else:
+                for url in img_url:
+                    img_info.append(url["src"])
             arr = p.split('\n')
             for i in range(len(arr)):
                 # print(arr[i])
                 if "Stage Name" in arr[i]:
                     s_name = arr[i].split(":")[1].split("(")[0].strip()
                     name = arr[i + 1].split(":")[1].split("(")[0].strip()
-                    print(f"{s_name} ({name})")
+                    #print(f"{s_name} ({name})")
                     names.append(f"{s_name} ({name})")
                     # print(f"{s_name} ({name})")
                 if "Height" in arr[i]:  # assume height (assume in cm) always followed by weight (assume in kg)
@@ -111,7 +114,7 @@ def data_image_grab(url_link, folder):
                     # print(height)
                     weight = arr[i + 1].split(":")[1].split("kg")[0].strip()
                     # print(weight)
-
+                    #print(height , weight)
                     # Calculate BMI and save into dictionary
                     idols[f"{s_name} ({name})"] = {"bmi": calculate_bmi(weight, height)}
 
@@ -123,11 +126,11 @@ def data_image_grab(url_link, folder):
             del idols[names[index]]  # remove person from dictionary since no BMI
             index += 1  # update index
             continue
-
         # Get the image URL from the 'src' attribute
-        image_url = image_tag['src']
+        image_url = image_tag
 
         # Send a GET request to the image URL
+        print(image_url)
         image_response = requests.get(image_url)
 
         # Check if the request was successful
@@ -188,4 +191,4 @@ if __name__ == "__main__":
         print("Scraping: ", url)
         data_image_grab(url, "kpopimages")
     '''
-    data_image_grab("https://kprofiles.com/3racha-members-profile/", "kpopimages")
+    data_image_grab("https://kprofiles.com/ab6ix-members-profile/", "kpopimages")
