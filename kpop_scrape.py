@@ -101,14 +101,22 @@ def data_image_grab(url_link, folder):
                 for url in img_url:
                     img_info.append(url["src"])
             arr = p.lower().split('\n')
+            stage_exist = False #if stage exists
             for i in range(len(arr)):
                 #print(arr[i])
-                if "stage name" in arr[i] or "birth name" in arr[i]:
+                if "stage name" in arr[i]:
                     s_name = arr[i].split(":")[1].split("(")[0].strip()
                     name = arr[i + 1].split(":")[1].split("(")[0].strip()
                     #print(f"{s_name} ({name})")
                     names.append(f"{s_name} ({name})")
+                    stage_exist = True
                     # print(f"{s_name} ({name})")
+                elif "birth name" in arr[i] and not stage_exist: # if stage exists then don't do anything
+                    s_name = arr[i].split(":")[1].split("(")[0].strip()
+                    name = arr[i + 1].split(":")[1].split("(")[0].strip()
+                    #print(f"{s_name} ({name})")
+                    names.append(f"{s_name} ({name})")
+
                 if "height" in arr[i]:  # assume height (assume in cm) always followed by weight (assume in kg)
                     height = arr[i].split(":")[1].split("cm")[0].strip()
                     # print(height)
@@ -191,4 +199,4 @@ if __name__ == "__main__":
         print("Scraping: ", url)
         data_image_grab(url, "kpopimages")
     '''
-    data_image_grab("https://kprofiles.com/atbo-members-profile/", "kpopimages")
+    data_image_grab("https://kprofiles.com/ace-kpop-boy-group-members-profile/", "kpopimages")
