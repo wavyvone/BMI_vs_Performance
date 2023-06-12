@@ -88,7 +88,7 @@ def data_image_grab(url_link, folder):
 
     idols = {}  # initialize dictionary
     names = []  # initalize an array to hold namese
-    for strip_p in p_info[3:]:
+    for strip_p in p_info:
         p = strip_p.text.strip()
         if "Height" in p:
             # since we know height is in here there has to be an image
