@@ -103,6 +103,7 @@ def data_image_grab(url_link, folder):
                 if "Stage Name" in arr[i]:
                     s_name = arr[i].split(":")[1].split("(")[0].strip()
                     name = arr[i + 1].split(":")[1].split("(")[0].strip()
+                    print(f"{s_name} ({name})")
                     names.append(f"{s_name} ({name})")
                     # print(f"{s_name} ({name})")
                 if "Height" in arr[i]:  # assume height (assume in cm) always followed by weight (assume in kg)
@@ -115,7 +116,7 @@ def data_image_grab(url_link, folder):
                     idols[f"{s_name} ({name})"] = {"bmi": calculate_bmi(weight, height)}
 
                     # print("_______________________________________")
-
+    
     index = 0
     for image_tag in img_info:  # assumes each idol/key in dictionary has image
         if idols[names[index]]["bmi"] == 999:  # error, no BMI
@@ -150,6 +151,10 @@ def data_image_grab(url_link, folder):
 
         index += 1  # update index
 
+    #for key, value in idols.items():
+        #print(f"Key: {key}, Value: {value}")
+
+
     # Write dictionary into csv
     # Specify the field names for the CSV
     fieldnames = ["Name", "BMI", "Filename"]
@@ -157,13 +162,17 @@ def data_image_grab(url_link, folder):
     # Specify the name of the CSV file
     csv_filename = "idol_data.csv"
 
+    # Check if the file exists
+    file_exists = os.path.isfile(csv_filename)
+
     # Open the CSV file in write mode
-    with open(csv_filename, mode="w", newline="") as csv_file:
+    with open(csv_filename, mode="a", newline="") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
 
-        # Write the header row
-        writer.writeheader()
-
+        # Write the header row only if the file doesn't exist
+        if not file_exists:
+            writer.writeheader()
+            
         # Write the data rows
         for person, data in idols.items():
             row = {"Name": person, "BMI": data["bmi"], "Filename": data["filename"]}
@@ -176,6 +185,7 @@ if __name__ == "__main__":
     active_groups = grab_all_url("https://kprofiles.com/k-pop-boy-groups/")
     total = active_groups + disbanded_groups
     for url in total:
+        print("Scraping: ", url)
         data_image_grab(url, "kpopimages")
     '''
-    data_image_grab("https://kprofiles.com/5tion-profile-facts/", "kpopimages")
+    data_image_grab("https://kprofiles.com/3racha-members-profile/", "kpopimages")
