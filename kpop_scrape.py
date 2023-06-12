@@ -103,7 +103,7 @@ def data_image_grab(url_link, folder):
             arr = p.lower().split('\n')
             for i in range(len(arr)):
                 #print(arr[i])
-                if "stage name" in arr[i]:
+                if "stage name" in arr[i] or "birth name" in arr[i]:
                     s_name = arr[i].split(":")[1].split("(")[0].strip()
                     name = arr[i + 1].split(":")[1].split("(")[0].strip()
                     #print(f"{s_name} ({name})")
@@ -191,4 +191,4 @@ if __name__ == "__main__":
         print("Scraping: ", url)
         data_image_grab(url, "kpopimages")
     '''
-    data_image_grab("https://kprofiles.com/9-numbers-members-profile/", "kpopimages")
+    data_image_grab("https://kprofiles.com/atbo-members-profile/", "kpopimages")
