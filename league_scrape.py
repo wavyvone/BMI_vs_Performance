@@ -32,7 +32,10 @@ def image_grab(url_link, resident_folder):
 	soup = BeautifulSoup(response.content, 'html.parser')
 
 	#use this for file path later
-	title = soup.find(id="firstHeading").string.strip()
+	title = soup.find("span", class_="mw-page-title-main")
+	if title is None:
+		title = soup.find(id="firstHeading")
+	title = title.string.strip()
 
 	#might have to change this if youre a windows user
 	path_str = "./" + resident_folder + title
@@ -45,31 +48,65 @@ def image_grab(url_link, resident_folder):
 	if gallery is None:
 		return
 
-	gallery_links = gallery.find_all('a')
-	img_list = []
+	#grab captions
+	caption = gallery.find_all('p')
+	captions = [p.text.strip() for p in caption]
+	empty_caption = False
+	if len(captions) == 0:
+		 empty_caption = True
 
-	for img in gallery_links:
-		url = img.get('href')
+	gallery_links = gallery.find_all('a')
+
+	img_list = []
+	caption_list = []
+	counter = 0
+	for img_i in range(len(gallery_links)):
+		url = gallery_links[img_i].get('href')
 
 		# Check if the url is an image link
 		if '.jpg' in url or '.png' in url or '.jpeg' in url:
 			img_list.append(url)
+			if not empty_caption:
+				if len(captions)-1 < counter:
+					caption_list.append(title)
+				else:
+					cap = captions[counter].replace("/", " ")
+					caption_list.append(cap)
+					counter += 1
 
 
 	#gets a list of existing photos and removes them from the photo links
 	existingPhotos = os.listdir(path_str)
 	img_list_novel = []
+	match_og_type = []
 	for url in img_list:
 		match = re.search(r'/([\w-]+\.(?:jpg|jpeg|png))/', url)
 		if match is not None:
 			filename = match.group(1)
+			arr_url = url.split('/')
+			for og in arr_url:
+				if 'jpg' in og or '.jpeg' in og or '.png' in og:
+					match_og_type.append(og.replace("_", " "))
+			'''
+			if '.jpg' in url:
+				match_type.append('.jpg')
+			if '.jpeg' in url:
+				match_type.append('.jpeg')
+			if '.png' in url:
+				match_type.append('.png')
+			'''
 			if filename not in existingPhotos:
 				img_list_novel.append(url)
 
 
+
 	#iterate list and download images
-	for i in img_list_novel:
-		wget.download(i, out = path_str, bar=None)
+	for i in range(len(img_list_novel)):
+		if not empty_caption:
+			res_path = path_str + "/" + caption_list[i] + " " + match_og_type[i]
+		else:
+			res_path = path_str
+		wget.download(img_list_novel[i], out = res_path, bar=None)
 
 
 def placements_grab(url_link, resident_folder):
@@ -93,7 +130,12 @@ def placements_grab(url_link, resident_folder):
 	soup = BeautifulSoup(response.content, 'html.parser')
 
 	#use this for file path later
-	title = soup.find(id="firstHeading").string.strip()
+	title = soup.find("span", class_="mw-page-title-main")
+	if title is None:
+		title = soup.find(id="firstHeading")
+
+	title = title.string.strip()
+
 	dir_name = title.replace("/", "_").replace(" ","_")
 
 	path_str = "./" + resident_folder + dir_name
@@ -183,8 +225,11 @@ def scrapePlayersFromURL(url, folder):
 def main():
 
 	folders = ['NA/', 'CN/', "KR/"]
+	#folders = ['CN/', "KR/"]
+
 	urls = ['https://lol.fandom.com/wiki/North_American_Players', 'https://lol.fandom.com/wiki/Chinese_Players', 'https://lol.fandom.com/wiki/Korean_Players']
-	for (folder, url) in zip(folders, urls):		
+	#urls = [ 'https://lol.fandom.com/wiki/Chinese_Players', 'https://lol.fandom.com/wiki/Korean_Players']
+	for (folder, url) in zip(folders, urls):
 		
 		activePlayersUrl = url
 		freeAgentUrl = url + '/Free_Agents'
@@ -210,3 +255,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+	#image_grab('https://lol.fandom.com/wiki/Tuesday_(Jean-Sébastien_Thery)', 'Test/')
+	#scrapePlayersFromURL('https://lol.fandom.com/wiki/Diamond_(David_Bérubé)', 'KR/')
