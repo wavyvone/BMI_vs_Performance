@@ -11,7 +11,7 @@ import pandas as pd
 import imageio
 import cv2
 
-def loadcsv(csv_file_path, folder_path):
+def modify_and_save_csv(csv_file_path, folder_path):
     '''
     opens morph.csv file, creates bmi column
     returns a list in this format
@@ -34,15 +34,16 @@ def loadcsv(csv_file_path, folder_path):
 
     # Convert bookid to str to match with image names and add .jpg extension
     df['bookid'] = df['bookid'].astype(str) + '.jpg'
+    
+    # Add absolute path to bookid column
     df['bookid'] = df['bookid'].apply(lambda x: os.path.join(folder_path, x))
     
     # Filter out entries where file does not exist
     df = df[df['bookid'].apply(os.path.exists)]
-    
-    filepaths = df['bookid'].tolist()
-    bmi = df['bmi'].tolist()
-    return filepaths, bmi
 
+    # Save modified dataframe to new csv file
+    new_file_path = csv_file_path[:-4] + '_modified.csv'
+    df.to_csv(new_file_path, index=False)
 
 def load_and_align_images(filepaths, image_size=160, margin=32, gpu_memory_fraction=1.0):
     minsize = 20 # minimum size of face
@@ -105,11 +106,13 @@ class DataGenerator:
 
 
 class BMI_Estimator:
-    def __init__(self, feature_size, num_hidden_units_1, num_hidden_units_2, dropout_rate):
+    def __init__(self, feature_size, num_hidden_units_1, num_hidden_units_2, num_hidden_units_3, dropout_rate, learning_rate=0.001):
         self.feature_size = feature_size
         self.num_hidden_units_1 = num_hidden_units_1
         self.num_hidden_units_2 = num_hidden_units_2
+        self.num_hidden_units_3 = num_hidden_units_3
         self.dropout_rate = dropout_rate
+        self.learning_rate = learning_rate
         
         self._build_model()
         self.saver = tf.train.Saver()    
@@ -118,13 +121,14 @@ class BMI_Estimator:
         self.features = tf.placeholder(tf.float32, shape=[None, self.feature_size])
         self.labels = tf.placeholder(tf.float32, shape=[None, 1])
 
-        fc1 = tf.layers.dense(self.features, self.num_hidden_units_1, activation=tf.nn.relu)
-        fc2 = tf.layers.dense(fc1, self.num_hidden_units_2, activation=tf.nn.relu)
+        fc1 = tf.layers.dense(self.features, self.num_hidden_units_1, activation=tf.nn.leaky_relu)
+        fc2 = tf.layers.dense(fc1, self.num_hidden_units_2, activation=tf.nn.leaky_relu)
         dropout = tf.layers.dropout(fc2, rate=self.dropout_rate)
-        self.predictions = tf.layers.dense(dropout, 1)
+        fc3 = tf.layers.dense(dropout, self.num_hidden_units_3, activation=tf.nn.leaky_relu)
+        self.predictions = tf.layers.dense(fc3, 1)
         
         self.loss = tf.losses.mean_squared_error(self.labels, self.predictions)
-        self.optimizer = tf.train.AdamOptimizer().minimize(self.loss)
+        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
     
     def train(self, sess, features, labels):
         feed_dict = {self.features: features, self.labels: labels}
@@ -134,20 +138,20 @@ class BMI_Estimator:
     def predict(self, sess, features):
         feed_dict = {self.features: features}
         return sess.run(self.predictions, feed_dict=feed_dict)
-    def save_model(self, sess, base_path="model_checkpoint"):
-        # Check if the base directory exists, if not, create it
-        if not os.path.exists(base_path):
-            os.makedirs(base_path)
-            save_path = base_path
-        else:
-            # If the base directory exists, find the next available directory
-            dir_number = 1
-            while os.path.exists("{}{}".format(base_path, dir_number)):
-                dir_number += 1
-            save_path = "{}{}".format(base_path, dir_number)
+
+        
+    def save_model(self, sess, epoch, base_path="model_checkpoint"):
+        # Define the save path
+        save_path = "{}/model_epoch_{}/".format(base_path, epoch)
+
+        # Check if the save directory exists, if not, create it
+        if not os.path.exists(save_path):
             os.makedirs(save_path)
 
-        self.saver.save(sess, "{}/model_epoch_{}.ckpt".format(save_path, epoch))
+        # Save the model in the directory specific to the epoch
+        self.saver.save(sess, save_path + "model.ckpt")
+
+
         
 def pre_process_images(filepaths, labels):
     print('processing Dataset')
@@ -171,11 +175,16 @@ def pre_process_images(filepaths, labels):
     return train_images, train_labels, val_images, val_labels
 
 
-
 # Load filepaths and labels
 folder_path = 'data/morph'
-csv_file_path = 'data/morph.csv'
-filepaths, labels = loadcsv(csv_file_path, folder_path)
+csv_file_path = 'data/morph_modified.csv'
+
+#you only have to run this once!
+modify_and_save_csv('data/morph.csv', folder_path)
+
+df = pd.read_csv(csv_file_path)
+filepaths = df['bookid'].tolist()
+labels = df['bmi'].tolist()
 labels = np.array(labels).reshape(-1, 1)
 
 # Split data into training and validation sets
@@ -192,6 +201,12 @@ with tf.Graph().as_default():
         model_path = '20180402-114759'
         facenet.load_model(model_path)
         
+        model_number = 1
+        bmi_model_path = 'model_checkpoint' + str(model_number)
+        while os.path.exists(bmi_model_path):
+            model_number += 1
+            bmi_model_path = 'model_checkpoint' + str(model_number)
+
         # Get input and output tensors
         images_placeholder = tf.get_default_graph().get_tensor_by_name("input:0")
         print('calculating facial feature vectors')
@@ -200,13 +215,15 @@ with tf.Graph().as_default():
 
         # Initialize BMI Estimator model
         feature_size = 512
-        num_hidden_units_1 = 256
-        num_hidden_units_2 = 128
+        num_hidden_units_1 = 512
+        num_hidden_units_2 = 256
+        num_hidden_units_3 = 128
         dropout_rate = 0.5
-        model = BMI_Estimator(feature_size, num_hidden_units_1, num_hidden_units_2, dropout_rate)
+        learning_rate = 1e-4  # Adjust as needed
+        model = BMI_Estimator(feature_size, num_hidden_units_1, num_hidden_units_2, num_hidden_units_3, dropout_rate, learning_rate)
         sess.run(tf.global_variables_initializer())
 
-        num_epochs = 20
+        num_epochs = 25
 
         # Train the model
         print('begin training')
@@ -236,4 +253,4 @@ with tf.Graph().as_default():
                 val_losses.append(val_loss)
 
             print("Epoch: {}, Validation Loss: {}".format(epoch, np.mean(val_losses)))
-            model.save_model(sess, "model_checkpoint/model_epoch_{}.ckpt".format(epoch))
+            model.save_model(sess, epoch, bmi_model_path)
