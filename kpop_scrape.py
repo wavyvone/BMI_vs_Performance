@@ -89,6 +89,8 @@ def data_image_grab(url_link, folder):
 
     idols = {}  # initialize dictionary
     names = []  # initalize an array to hold namese
+    members_prof = ""
+    members_flag = False
     for strip_p in p_info:
         p = strip_p.text.strip()
         if "Height" in p:
@@ -99,40 +101,58 @@ def data_image_grab(url_link, folder):
                 continue
             else:
                 for url in img_url:
-                    img_info.append(url["src"])
+                    if ".svg" not in url["src"]:
+                        img_info.append(url["src"])
             arr = p.lower().split('\n')
-            stage_exist = False #if stage exists
-            birth_exist = False #if birth exists
+            #print(arr)
+            name_flag = False #if we have a name already
             for i in range(len(arr)):
-                #print(arr[i])
-                if "stage name" in arr[i] and not birth_exist:
-                    s_name = arr[i].split(":")[1].split("(")[0].strip()
-                    name = arr[i + 1].split(":")[1].split("(")[0].strip()
+                if not members_flag:
+                    if "members:" in arr[i] or "member:" in arr[i] or "profile:" in arr[i]:
+                        splitted = arr[i].split(" ")
+                        for j in range(len(splitted)):
+                            if "members" in splitted[j]:
+                                members_prof = splitted[j-1]
+                                members_flag = True
+                                break
+
+                if "name:" in arr[i] and not name_flag:
+                    name_flag = True
+                    s_name = arr[i].split(":")[1].split("(")[0].strip().replace('/', '_')
+                    name = arr[i + 1].split(":")[1].split("(")[0].strip().replace('/', '_')
+                    '''
+                    if "name:" in arr[i + 1]:
+                        name = arr[i + 1].split(":")[1].split("(")[0].strip().replace('/', '_')
+                    else:
+                        name = arr[i + 1].split(" ")[2].split("(")[0].strip().replace('/', '_')
+                    '''
                     #print(f"{s_name} ({name})")
-                    names.append(f"{s_name} ({name})")
-                    stage_exist = True
-                    #print(f"{s_name} ({name})")
-                elif "birth name" in arr[i] and not stage_exist: # if stage exists then don't do anything
-                    birth_exist = True
-                    s_name = arr[i].split(":")[1].split("(")[0].strip()
-                    name = arr[i + 1].split(":")[1].split("(")[0].strip()
                     if s_name == "–":
                         s_name = name
+                    if name == "–":
+                        name = s_name
+                    names.append(f"{members_prof} {s_name} ({name})")
                     #print(f"{s_name} ({name})")
-                    names.append(f"{s_name} ({name})")
 
-                if "height" in arr[i]:  # assume height (assume in cm) always followed by weight (assume in kg)
+
+                if "height:" in arr[i] or "height :" in arr[i]:  # assume height (assume in cm) always followed by weight (assume in kg)
                     height = arr[i].split(":")[1].split("cm")[0].strip()
-                    # print(height)
-                    weight = arr[i + 1].split(":")[1].split("kg")[0].strip()
-                    # print(weight)
+                    weight = ""
+                    if "weight:" in arr[i + 1]:
+                        weight = arr[i + 1].split(":")[1].split("kg")[0].strip()
+                    elif "weight" in arr[i + 1]:
+                        weight = arr[i + 1].split(" ")[1].split("kg")[0].strip()
+                    #print(weight)
                     #print(height , weight)
                     # Calculate BMI and save into dictionary
-                    idols[f"{s_name} ({name})"] = {"bmi": calculate_bmi(weight, height)}
+                    idols[f"{members_prof} {s_name} ({name})"] = {"bmi": calculate_bmi(weight, height)}
 
                     # print("_______________________________________")
 
     index = 0
+    print(idols)
+    #print(img_info)
+
     for image_tag in img_info:  # assumes each idol/key in dictionary has image
         if idols[names[index]]["bmi"] == 999:  # error, no BMI
             del idols[names[index]]  # remove person from dictionary since no BMI
@@ -163,8 +183,10 @@ def data_image_grab(url_link, folder):
                 # print(f"Image '{filename}' saved successfully.")
         else:
             print(f"Failed to download the image from URL: {image_url}")
+            del idols[names[index]]
 
         index += 1  # update index
+
 
     #for key, value in idols.items():
         #print(f"Key: {key}, Value: {value}")
@@ -195,12 +217,17 @@ def data_image_grab(url_link, folder):
 
 
 if __name__ == "__main__":
-    '''
+
+    black_listed = ['https://kprofiles.com/rekids-dream-members-profile/', 'https://kprofiles.com/1-n-members-profile/', 'https://kprofiles.com/deep-studio-entertainment-boy-group-profile/',
+                    'https://kprofiles.com/zerobaseone-members-profile/', 'https://kprofiles.com/2shai-members-profile/', 'https://kprofiles.com/ledapple-members-profile/']
     disbanded_groups = grab_all_url("https://kprofiles.com/disbanded-kpop-boy-groups/")
     active_groups = grab_all_url("https://kprofiles.com/k-pop-boy-groups/")
     total = active_groups + disbanded_groups
     for url in total:
+        if url in black_listed:
+            continue
         print("Scraping: ", url)
         data_image_grab(url, "kpopimages")
     '''
-    data_image_grab("https://kprofiles.com/ninetyoone/", "kpopimages")
+    data_image_grab("https://kprofiles.com/deep-studio-entertainment-boy-group-profile/", "kpopimages")
+    '''
