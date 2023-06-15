@@ -1,3 +1,4 @@
+import h5py
 import numpy as np
 import sys
 sys.path.insert(0, './src')
@@ -45,6 +46,9 @@ def modify_and_save_csv(csv_file_path, folder_path):
     new_file_path = csv_file_path[:-4] + '_modified.csv'
     df.to_csv(new_file_path, index=False)
 
+
+
+
 def load_and_align_images(filepaths, image_size=160, margin=32, gpu_memory_fraction=1.0):
     minsize = 20 # minimum size of face
     threshold = [ 0.6, 0.7, 0.7 ]  # three steps's threshold
@@ -70,6 +74,9 @@ def load_and_align_images(filepaths, image_size=160, margin=32, gpu_memory_fract
                     if len(bounding_boxes) < 1:
                         print("No face detected in image %s" % filepath)
                         continue
+                    #if len(bounding_boxes) > 1:
+                        #print("Too many faces detected in image %s" % filepath)
+                        #continue
                     det = np.squeeze(bounding_boxes[0,0:4])
 
                     bb = np.zeros(4, dtype=np.int32)
@@ -152,10 +159,21 @@ class BMI_Estimator:
         self.saver.save(sess, save_path + "model.ckpt")
 
 
-        
+def store_processed_image(filepaths):
+    print('Saving Dataset')
+    all_images = load_and_align_images(filepaths)
+
+    with h5py.File('load_imgs.h5', 'w') as f:
+        f.create_dataset('data', data=all_images)
+
+
+
 def pre_process_images(filepaths, labels):
     print('processing Dataset')
-    all_images = load_and_align_images(filepaths)
+    #all_images = load_and_align_images(filepaths)
+    with h5py.File('load_imgs.h5', 'r') as f:
+        all_images = f['data'][:]
+
     all_labels = np.array(labels).reshape(-1, 1)
 
     indices = np.arange(len(all_images))
@@ -177,15 +195,18 @@ def pre_process_images(filepaths, labels):
 
 # Load filepaths and labels
 folder_path = 'data/morph'
-csv_file_path = 'data/morph_modified.csv'
+csv_file_path = 'data/kpop_morphe_modified.csv'
 
 #you only have to run this once!
-modify_and_save_csv('data/morph.csv', folder_path)
+#modify_and_save_csv('data/full.csv', folder_path)
 
 df = pd.read_csv(csv_file_path)
 filepaths = df['bookid'].tolist()
 labels = df['bmi'].tolist()
 labels = np.array(labels).reshape(-1, 1)
+
+#run this once
+#store_processed_image(filepaths)
 
 # Split data into training and validation sets
 train_images, train_labels, val_images, val_labels = pre_process_images(filepaths, labels)
@@ -198,7 +219,7 @@ val_data_generator = DataGenerator(val_images, val_labels, batch_size)
 # Load the model
 with tf.Graph().as_default():
     with tf.Session() as sess:
-        model_path = '20180402-114759'
+        model_path = 'facenet_model_20180402-11475'
         facenet.load_model(model_path)
         
         model_number = 1
