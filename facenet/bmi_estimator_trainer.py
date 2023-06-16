@@ -113,11 +113,12 @@ class DataGenerator:
 
 
 class BMI_Estimator:
-    def __init__(self, feature_size, num_hidden_units_1, num_hidden_units_2, num_hidden_units_3, dropout_rate, learning_rate=0.001):
+    def __init__(self, feature_size, num_hidden_units_1, num_hidden_units_2, num_hidden_units_3, num_hidden_units_4, dropout_rate, learning_rate=0.001):
         self.feature_size = feature_size
         self.num_hidden_units_1 = num_hidden_units_1
         self.num_hidden_units_2 = num_hidden_units_2
         self.num_hidden_units_3 = num_hidden_units_3
+        self.num_hidden_units_4 = num_hidden_units_4
         self.dropout_rate = dropout_rate
         self.learning_rate = learning_rate
         
@@ -132,7 +133,9 @@ class BMI_Estimator:
         fc2 = tf.layers.dense(fc1, self.num_hidden_units_2, activation=tf.nn.leaky_relu)
         dropout = tf.layers.dropout(fc2, rate=self.dropout_rate)
         fc3 = tf.layers.dense(dropout, self.num_hidden_units_3, activation=tf.nn.leaky_relu)
-        self.predictions = tf.layers.dense(fc3, 1)
+        fc4 = tf.layers.dense(fc3, self.num_hidden_units_4, activation=tf.nn.leaky_relu)
+        dropout2 = tf.layers.dropout(fc4, rate=self.dropout_rate)
+        self.predictions = tf.layers.dense(dropout2, 1)
         
         self.loss = tf.losses.mean_squared_error(self.labels, self.predictions)
         self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
@@ -219,7 +222,7 @@ val_data_generator = DataGenerator(val_images, val_labels, batch_size)
 # Load the model
 with tf.Graph().as_default():
     with tf.Session() as sess:
-        model_path = 'facenet_model_20180402-11475'
+        model_path = 'best_model/loss_19'
         facenet.load_model(model_path)
         
         model_number = 1
@@ -239,9 +242,10 @@ with tf.Graph().as_default():
         num_hidden_units_1 = 512
         num_hidden_units_2 = 256
         num_hidden_units_3 = 128
+        num_hidden_units_4 = 64
         dropout_rate = 0.5
         learning_rate = 1e-4  # Adjust as needed
-        model = BMI_Estimator(feature_size, num_hidden_units_1, num_hidden_units_2, num_hidden_units_3, dropout_rate, learning_rate)
+        model = BMI_Estimator(feature_size, num_hidden_units_1, num_hidden_units_2, num_hidden_units_3, num_hidden_units_4, dropout_rate, learning_rate)
         sess.run(tf.global_variables_initializer())
 
         num_epochs = 25
