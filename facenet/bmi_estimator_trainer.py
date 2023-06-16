@@ -129,6 +129,7 @@ class BMI_Estimator:
         self.features = tf.placeholder(tf.float32, shape=[None, self.feature_size])
         self.labels = tf.placeholder(tf.float32, shape=[None, 1])
 
+
         fc1 = tf.layers.dense(self.features, self.num_hidden_units_1, activation=tf.nn.leaky_relu)
         fc2 = tf.layers.dense(fc1, self.num_hidden_units_2, activation=tf.nn.leaky_relu)
         dropout = tf.layers.dropout(fc2, rate=self.dropout_rate)
@@ -137,7 +138,8 @@ class BMI_Estimator:
         dropout2 = tf.layers.dropout(fc4, rate=self.dropout_rate)
         self.predictions = tf.layers.dense(dropout2, 1)
         
-        self.loss = tf.losses.mean_squared_error(self.labels, self.predictions)
+        #self.loss = tf.losses.mean_squared_error(self.labels, self.predictions)
+        self.loss = tf.reduce_mean(tf.abs(self.labels - self.predictions))
         self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
     
     def train(self, sess, features, labels):
