@@ -130,6 +130,20 @@ class BMI_Estimator:
         self.labels = tf.placeholder(tf.float32, shape=[None, 1])
 
 
+        #added
+        # Reshape features to a 4D tensor for compatibility with convolutional layers
+        features_reshape = tf.reshape(self.features, [-1, 16, 32, 1])  # Assuming a feature_size of 512
+
+        # Add normalization layer (e.g., batch normalization)
+        normalized_features = tf.layers.batch_normalization(features_reshape)
+
+        # Add max pooling layer
+        max_pooled_features = tf.layers.max_pooling2d(normalized_features, pool_size=(2, 2), strides=(2, 2))
+
+        # Flatten the max pooled features for compatibility with fully connected layers
+        flattened_features = tf.layers.flatten(max_pooled_features)
+        #end of added
+
         fc1 = tf.layers.dense(self.features, self.num_hidden_units_1, activation=tf.nn.leaky_relu)
         fc2 = tf.layers.dense(fc1, self.num_hidden_units_2, activation=tf.nn.leaky_relu)
         dropout = tf.layers.dropout(fc2, rate=self.dropout_rate)
