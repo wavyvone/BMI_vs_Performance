@@ -144,13 +144,16 @@ class BMI_Estimator:
         flattened_features = tf.layers.flatten(max_pooled_features)
         #end of added
 
-        fc1 = tf.layers.dense(self.features, self.num_hidden_units_1, activation=tf.nn.leaky_relu)
+        #fc1 = tf.layers.dense(self.features, self.num_hidden_units_1, activation=tf.nn.leaky_relu)
+        fc1 = tf.layers.dense(flattened_features, self.num_hidden_units_1, activation=tf.nn.leaky_relu)
         fc2 = tf.layers.dense(fc1, self.num_hidden_units_2, activation=tf.nn.leaky_relu)
-        dropout = tf.layers.dropout(fc2, rate=self.dropout_rate)
+        bn2 = tf.layers.batch_normalization(fc2)  # Batch normalization after the second dense layer
+        dropout = tf.layers.dropout(bn2, rate=self.dropout_rate)
         fc3 = tf.layers.dense(dropout, self.num_hidden_units_3, activation=tf.nn.leaky_relu)
-        fc4 = tf.layers.dense(fc3, self.num_hidden_units_4, activation=tf.nn.leaky_relu)
-        dropout2 = tf.layers.dropout(fc4, rate=self.dropout_rate)
-        self.predictions = tf.layers.dense(dropout2, 1)
+        dropout2 = tf.layers.dropout(fc3, rate=self.dropout_rate)
+        fc4 = tf.layers.dense(dropout2, self.num_hidden_units_4, activation=tf.nn.leaky_relu)
+        dropout3 = tf.layers.dropout(fc4, rate=self.dropout_rate)
+        self.predictions = tf.layers.dense(dropout3, 1)
         
         #self.loss = tf.losses.mean_squared_error(self.labels, self.predictions)
         self.loss = tf.reduce_mean(tf.abs(self.labels - self.predictions))
