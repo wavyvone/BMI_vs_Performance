@@ -121,6 +121,7 @@ class BMI_Estimator:
         self.num_hidden_units_4 = num_hidden_units_4
         self.dropout_rate = dropout_rate
         self.learning_rate = learning_rate
+        self.is_training = tf.placeholder(tf.bool, name='is_training')
         
         self._build_model()
         self.saver = tf.train.Saver()    
@@ -130,19 +131,19 @@ class BMI_Estimator:
         self.labels = tf.placeholder(tf.float32, shape=[None, 1])
 
         # Reshape features to a 4D tensor for compatibility with convolutional layers
-        features_reshape = tf.reshape(self.features, [-1, 16, 32, 1])  # Assuming a feature_size of 512
+        #features_reshape = tf.reshape(self.features, [-1, 16, 32, 1])  # Assuming a feature_size of 512
 
         # Add normalization layer (e.g., batch normalization)
-        normalized_features = tf.layers.batch_normalization(features_reshape)
+        normalized_features = tf.layers.batch_normalization(self.features, training= self.is_training)
 
         # Add max pooling layer
         # max_pooled_features = tf.layers.max_pooling2d(normalized_features, pool_size=(2, 2), strides=(2, 2))
 
         # Flatten the max pooled features for compatibility with fully connected layers
-        flattened_features = tf.layers.flatten(normalized_features)
+        #flattened_features = tf.layers.flatten(normalized_features)
 
         # Continue with the existing code
-        fc1 = tf.layers.dense(flattened_features, num_hidden_units_1, activation=tf.nn.leaky_relu)
+        fc1 = tf.layers.dense(normalized_features, num_hidden_units_1, activation=tf.nn.leaky_relu)
         fc2 = tf.layers.dense(fc1, num_hidden_units_2, activation=tf.nn.leaky_relu)
         dropout = tf.layers.dropout(fc2, rate=self.dropout_rate)
         fc3 = tf.layers.dense(dropout, num_hidden_units_3, activation=tf.nn.leaky_relu)
@@ -155,12 +156,12 @@ class BMI_Estimator:
         self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
     
     def train(self, sess, features, labels):
-        feed_dict = {self.features: features, self.labels: labels}
+        feed_dict = {self.features: features, self.labels: labels, self.is_training: True}
         _, loss = sess.run([self.optimizer, self.loss], feed_dict=feed_dict)
         return loss
     
     def predict(self, sess, features):
-        feed_dict = {self.features: features}
+        feed_dict = {self.features: features, self.is_training: False}
         return sess.run(self.predictions, feed_dict=feed_dict)
 
         
@@ -283,12 +284,12 @@ with tf.Graph().as_default():
             val_losses = []
             for images, labels in val_data_generator.generate():
                 # Run forward pass to calculate embeddings
-                feed_dict = {images_placeholder: images, phase_train_placeholder: False}
+                feed_dict = {images_placeholder: images, phase_train_placeholder: False, model.is_training: False}
                 features = sess.run(embeddings, feed_dict=feed_dict)
 
                 # Compute validation loss
                 predictions = model.predict(sess, features)
-                val_loss = sess.run(model.loss, feed_dict={model.features: features, model.labels: labels})
+                val_loss = sess.run(model.loss, feed_dict={model.features: features, model.labels: labels, model.is_training: False})
                 val_losses.append(val_loss)
 
             print("Epoch: {}, Validation Loss: {}".format(epoch, np.mean(val_losses)))
